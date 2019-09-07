@@ -7,7 +7,21 @@ This script was written to produce many of the results and figures in Wyka et al
 
 Results will consist of:
 
-Pangenomic stats
+Pangenome stats
+![Pangenome stats](https://github.com/PlantDr430/images/blob/master/Pangenome_stats.png)
+
+Pangenome curve - with power law regression fit
+![Pangenome curve - with power law regression fit](https://github.com/PlantDr430/images/blob/master/Pangenome_curve.png)
+
+Pangenome fluidity - computed with bootstraps (resampling)
+![Pangenome fluidity - computed with bootstraps (resampling)](https://github.com/PlantDr430/images/blob/master/Pangenome_fluidity.png)
+
+Protein length boxplots for pangenome category (lettering for significance with Kruskal-Wallis Test)
+![Protein lengths](https://github.com/PlantDr430/images/blob/master/Protein_lengths.png)
+
+Bar charts for all analyses specified showing proportion of clusters (if >= 50% of species in cluster have at least 1 protein with the specified annotation, % identify can be altered) (letters for significance with Fischer Exact test)
+![Bar charts](https://github.com/PlantDr430/images/blob/master/secretome_pangenome_bar.png)
+
 
 
 ## Dependencies 
