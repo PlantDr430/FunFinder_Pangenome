@@ -51,19 +51,18 @@ optional arguments:
 
 1. Multiple annotations files from annotate_misc Funannotate output folder:
 
-      * annotations.antismash.clusters   
-      * annotations.antismash    
-      * annotations.dbCAN   
-      * annotations.genes-products   
-      * annotations.iprscan   
-      * annotations.merops   
-      * annotations.pfam   
+      * annotations.antismash.clusters.txt   
+      * annotations.antismash.txt    
+      * annotations.dbCAN.txt   
+      * annotations.genes-products.txt   
+      * annotations.iprscan.txt   
+      * annotations.merops.txt   
+      * annotations.pfam.txt   
       
-          Should look like this:
+          For example the annotations.pfam.txt would look like this:
           
-          Uniq_####-T1  db_xref	PFAM:PF00389   
-          Uniq_####-T1  db_xref	PFAM:PF00004
-          Uniq_####-T1  note	CAZy:GH16
+          Spec1_9583-T1  db_xref	PFAM:PF00389   
+          Spec1_8343-T1  db_xref	PFAM:PF00004
  
       * phobius.results   
       * signalp.results   
