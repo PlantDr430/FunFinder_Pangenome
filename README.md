@@ -22,9 +22,9 @@ Protein length boxplots for pangenome category (lettering for significance with 
 Bar charts for all analyses respective showing proportion of clusters in each pangenomic category if >= 50% of species represented in the cluster have at least 1 protein with the respective annotation (% identify can be altered) (letters for significance with Fischer Exact test)
 ![Bar charts](https://github.com/PlantDr430/images/blob/master/secretome_pangenome_bar.png)
 
-## Output files
+## Other output files
 
-All figures as well as text files associated with images for reproduction purposes. Within in isolate directory in the species_results directory there will be fasta files containing proteins from each analysis provided, as well as, overall_results file for each analysis. 
+All figures as well as text files associated with images for reproduction purposes. Within in isolate directory in the species_results directory there will be fasta files containing proteins from each analysis provided, as well as, overall_results file for each analysis (Note: These overall_results for each analysis will not always match the pangenome clusters for each analysis as we have a default 50% cutoff for clusters to be classified as a given annotation category). Final output file will be a large tab deliminated file that can be opened in excel which will contain all clusters their proteins and annotations. 
 
 ## Dependencies 
 
