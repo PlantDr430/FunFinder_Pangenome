@@ -98,7 +98,7 @@ Parent_directory
     |       |
     |       +-- Species_proteins.fasta
     |       |
-    |       +-- (All annotation files) <- make sure analysis names are in filename (such as 'pfam', 'iprscan', 'dbcan', etc)
+    |       +-- (All annotation files) <- make sure analysis names are in filename (such as 'pfam', 'dbcan', 'antismash', etc)
     |
     |
     +--Isolate
