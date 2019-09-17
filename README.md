@@ -22,14 +22,28 @@ Protein length boxplots for pangenome category (lettering for significance with 
 Bar charts for all analyses respective showing proportion of clusters in each pangenomic category if >= 50% of species represented in the cluster have at least 1 protein with the respective annotation (% identify can be altered) (letters for significance with Fischer Exact test)
 ![Bar charts](https://github.com/PlantDr430/images/blob/master/secretome_pangenome_bar.png)
 
+Gene Ontology Enrichment Analyses for all types (Biological Process, Molecular Function, and Cellular Component) and all Pangenome categories (Core, Accessory, and Singleton)
+![GOEA](https://github.com/PlantDr430/images/blob/master/GOEA_Accessory_MF.png)
+
 ## Other output files
 
 All figures as well as text files associated with images for reproduction purposes. Within in isolate directory in the species_results directory there will be fasta files containing proteins from each analysis provided, as well as, overall_results file for each analysis (Note: These overall_results for each analysis will not always match the pangenome clusters for each analysis as we have a default 50% cutoff for clusters to be classified as a given annotation category). Final output file will be a large tab deliminated file that can be opened in excel which will contain all clusters their proteins and annotations. 
 
 ## Dependencies 
 
-1. [Python 3](https://www.python.org/downloads/)
-2. [EffectorP_2.0](http://effectorp.csiro.au/software.html)
+1. [Python 3](https://www.python.org/downloads/)   
+    * Scipy
+    * Numpy
+    * Pandas
+    * Matplotlib
+    * [goatools](https://github.com/tanghaibao/goatools) <- need to pip install
+    * [find_enrichment.py](https://github.com/tanghaibao/goatools/blob/master/scripts/find_enrichment.py)   
+    
+2. [EffectorP_2.0](http://effectorp.csiro.au/software.html)   
+3. go-basic.obo   
+`wget http://geneontology.org/ontology/go-basic.obo`
+4. goslim_generic.obo   
+`wget http://www.geneontology.org/ontology/subsets/goslim_generic.obo`
 
 ## Usage
 
