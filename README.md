@@ -48,18 +48,37 @@ All figures as well as text files associated with images for reproduction purpos
 ## Usage
 
 ```
-usage: ./Orthofinder_2_pangenome.py [options] -d directory -a analyses -o output
+usage: ./Orthofinder_2_pangenome.py [options] -d directory -o output
+
+
 
 optional arguments:
   -h, --help                      show this help message and exit
   -d , --directory                Directory containing folders for processing
-  -a  [ ...], --analyses  [ ...]  Analyses to compare separated by commas [tmhmm,phobius,signalp,effectors,merops,dbcan,pfam,iprscan,antismash]
+  -a  [ ...], --analyses  [ ...]  Analyses to compare [default: all]. Can put "none" or individual analyses separated by commas
   -o , --out                      Output folder
   -f_p , --fischer_pvalue         Pvalue cutoff for Fischer exact test [default: 0.05]
   -k_p , --kruskal_pvalue         Pvalue cutoff for Kruskal-Wallis test [default: 0.05]
-  -p , --percent                  Percent of isolates within a cluster that contains proteins with analysis hit,to consider the cluster as such [default: 0.50]
-  -b , --bootstrap                Bootsraps for genome fluidity calculations [default: 5]
+  -b_p , --benjamini_pvalue       Pvalue cutoff for Benjamini-Hochberg in GO Enrichment Analysis [default: 0.05]
+  -al , --alpha                   Test-wise alpha for GO Enrichment Analysis [default: 0.05]
+  -p , --percent                  Percent of isolates within a cluster containing proteins with annotation hit, to consider the cluster as such [default: 0.50]
+  -b , --bootstrap                Bootsraps for genome fluidity calculations [default: 25]
+  --NO_GO                         Do not perform GO enrichment analysis if iprscan is in analyses [default: ON]
+  --ENRICHMENT_PATH               Path to find_enrichment.py if not set in $PATH
+  --GOBASIC_PATH                  Path to go-basic.obo if not in current run directory
+  --GOSLIM_PATH                   Path to goslim_generic.obo if not in current run directory
 ```
+
+## Optional analyses:
+tmhmm
+phobius
+signalp
+effectors
+merops
+dbcan
+pfam
+iprscan
+antismash
 
 ## Files 
 
