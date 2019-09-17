@@ -129,7 +129,7 @@ Parent_directory
     +--Isolate  
     |       |
     |       |
-    |       +-- Species_proteins.fasta
+    |       +-- Isolate_proteins.fasta
     |       |
     |       +-- (All annotation files) <- make sure analysis names are in filename (such as 'pfam', 'dbcan', 'antismash', etc)
     |
@@ -137,7 +137,7 @@ Parent_directory
     +--Isolate
             |
             |
-            +-- Species_proteins.fasta
+            +-- Isolate_proteins.fasta
             |
             +-- (All annotation files)
 ```
