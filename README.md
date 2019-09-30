@@ -73,15 +73,15 @@ optional arguments:
 ```
 
 ## Optional analyses:
-tmhmm
-phobius
-signalp
-effectors
-merops
-dbcan
-pfam
-iprscan
-antismash
+tmhmm   
+phobius   
+signalp   
+effectors   
+merops   
+dbcan   
+pfam   
+iprscan   
+antismash   
 
 ## Files 
 
