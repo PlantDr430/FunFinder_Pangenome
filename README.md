@@ -23,7 +23,7 @@ Bar charts for all analyses specified at run time showing proportion of clusters
 ![Bar charts](https://github.com/PlantDr430/images/blob/master/secretome_pangenome_bar.png)
 
 Gene Ontology Enrichment Analyses for all types (Biological Process, Molecular Function, and Cellular Component) and all Pangenome categories (Core, Accessory, and Singleton)
-![GOEA](https://github.com/PlantDr430/images/blob/master/GOEA_Accessory_MF.png)
+![GOEA](https://github.com/PlantDr430/images/blob/master/GOEA_Accessory_BP.png)
 
 ## Other output files
 
