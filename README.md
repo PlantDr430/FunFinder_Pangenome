@@ -27,7 +27,7 @@ Gene Ontology Enrichment Analyses for all types (Biological Process, Molecular F
 
 ## Other output files
 
-All figures as well as text files associated with images for reproduction purposes. Within in isolate directory in the species_results directory there will be fasta files containing proteins from each analysis provided, as well as, overall_results file for each analysis (Note: These overall_results for each analysis will not always match the pangenome clusters for each analysis as we have a default 50% cutoff for clusters to be classified as a given annotation category). Final output file will be a large tab deliminated file that can be opened in excel which will contain all clusters their proteins and annotations. 
+All figures as well as text files associated with images for reproduction purposes. Within each isolate directory in the species_results directory there will be separate fasta files containing proteins from each analysis provided, as well as, overall_results file for each analysis (Note: These overall_results for each analysis will not always match the pangenome clusters for each analysis as we have a default 50% cutoff for clusters to be classified as a given annotation category). Final output file will be a large tab deliminated file that can be opened in excel which will contain all clusters their proteins and annotations. 
 
 ## Dependencies 
 
@@ -129,18 +129,18 @@ Parent_directory
     +--Orthogroups.txt
     |
     |
-    +--Isolate  
+    +--Isolate1 
     |       |
     |       |
-    |       +-- Isolate_proteins.fasta
+    |       +-- Isolate1_proteins.fasta
     |       |
     |       +-- (All annotation files) <- make sure analysis names are in filename (such as 'pfam', 'dbcan', 'antismash', etc)
     |
     |
-    +--Isolate
+    +--Isolate2
             |
             |
-            +-- Isolate_proteins.fasta
+            +-- Isolate2_proteins.fasta
             |
             +-- (All annotation files)
 ```
