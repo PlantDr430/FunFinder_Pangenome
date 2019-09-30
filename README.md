@@ -3,7 +3,7 @@
 
 ## Summary
 
-This script was written to produce many of the results and figures in Wyka et al. (in preparation). It takes output files from [Funannotate](https://github.com/nextgenusfs/funannotate) and the Orthogroups.txt output from [Orthofinder](https://github.com/davidemms/OrthoFinder) and conducts pangenomic analyses and produces results in the form of text files and figures.
+This script was written to produce many of the results and figures in Wyka et al. (in preparation). It takes output files from [Funannotate](https://github.com/nextgenusfs/funannotate) and the Orthogroups.txt output from [Orthofinder](https://github.com/davidemms/OrthoFinder) (or similar programs such as OrthoMCL and SiLiX) and conducts pangenomic analyses and produces results in the form of text files and figures.
 
 Results will consist of:
 
@@ -13,13 +13,13 @@ Pangenome stats
 Pangenome curve - with power law regression fit
 ![Pangenome curve - with power law regression fit](https://github.com/PlantDr430/images/blob/master/Pangenome_curve.png)
 
-Pangenome fluidity - computed with bootstraps (resampling)
+Pangenome fluidity - follows [pangenome_fluidity](https://github.com/PlantDr430/CSU_scripts/blob/master/pangenome_fluidity.py)
 ![Pangenome fluidity - computed with bootstraps (resampling)](https://github.com/PlantDr430/images/blob/master/Species_9_pangenome_fluidity.png)
 
 Protein length boxplots for pangenome category (lettering for significance with Kruskal-Wallis Test)
 ![Protein lengths](https://github.com/PlantDr430/images/blob/master/Protein_lengths.png)
 
-Bar charts for all analyses respective showing proportion of clusters in each pangenomic category if >= 50% of species represented in the cluster have at least 1 protein with the respective annotation (% identify can be altered) (letters for significance with Fischer Exact test)
+Bar charts for all analyses specified at run time showing proportion of clusters in each pangenomic category if >= 50% of species represented in the cluster have at least 1 protein with the respective annotation (i.e. if 5 or more genomes, out of 10 total genomes, have 1 protein in a cluster that has hits for a secreted protein then that cluster will be classifed as a secreted protein cluster) (this can be altered at run time with -p/--percent) (letters for significance with Fischer Exact test)
 ![Bar charts](https://github.com/PlantDr430/images/blob/master/secretome_pangenome_bar.png)
 
 Gene Ontology Enrichment Analyses for all types (Biological Process, Molecular Function, and Cellular Component) and all Pangenome categories (Core, Accessory, and Singleton)
@@ -48,22 +48,25 @@ All figures as well as text files associated with images for reproduction purpos
 ## Usage
 
 ```
-usage: ./Orthofinder_2_pangenome.py [options] -d directory -o output
+usage: ./FunFinder_Pangenome.py [options] -d directory -o output
 
-
+    Data analysis of Funannotate and Orthofinder outputs to Pangenome results.
 
 optional arguments:
   -h, --help                      show this help message and exit
   -d , --directory                Directory containing folders for processing
   -a  [ ...], --analyses  [ ...]  Analyses to compare [default: all]. Can put "none" or individual analyses separated by commas
-  -o , --out                      Output folder
-  -f_p , --fischer_pvalue         Pvalue cutoff for Fischer exact test [default: 0.05]
-  -k_p , --kruskal_pvalue         Pvalue cutoff for Kruskal-Wallis test [default: 0.05]
+  -o , --out                      New output folder. Do not use input directory as output directory
+  -f_p , --fischer_pvalue         Pvalue cutoff for Fischer exact test (annotation bar charts) [default: 0.05]
+  -k_p , --kruskal_pvalue         Pvalue cutoff for Kruskal-Wallis test (protein length boxplot) [default: 0.05]
   -b_p , --benjamini_pvalue       Pvalue cutoff for Benjamini-Hochberg in GO Enrichment Analysis [default: 0.05]
   -al , --alpha                   Test-wise alpha for GO Enrichment Analysis [default: 0.05]
-  -p , --percent                  Percent of isolates within a cluster containing proteins with annotation hit, to consider the cluster as such [default: 0.50]
-  -b , --bootstrap                Bootsraps for genome fluidity calculations [default: 25]
+  -p , --percent                  Percent of isolates within a cluster containing proteins with analysis hit, to consider the cluster as such [default: 0.50]
+  -c , --cpus                     Number of cores to use for multiprocessing of fluidity [default: 1]
+  -max_sub , --max_subsamples     Max number of subsamples to run on N genomes sampled for fluidity. [default: 50000]
+  --max_off                       Turn off the max subsamples. This will cause the script sample ALL possible combinationsfor N genomes
   --NO_GO                         Do not perform GO enrichment analysis if iprscan is in analyses [default: ON]
+  --EFFECTORP_PATH                Path to EffectorP.py if not set in $PATH
   --ENRICHMENT_PATH               Path to find_enrichment.py if not set in $PATH
   --GOBASIC_PATH                  Path to go-basic.obo if not in current run directory
   --GOSLIM_PATH                   Path to goslim_generic.obo if not in current run directory
