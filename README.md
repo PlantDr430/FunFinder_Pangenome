@@ -5,7 +5,7 @@
 
 This script was written to produce many of the results and figures in Wyka et al. (in preparation). It takes output files from [Funannotate](https://github.com/nextgenusfs/funannotate) and the Orthogroups.txt output from [Orthofinder](https://github.com/davidemms/OrthoFinder) (or similar programs such as OrthoMCL and SiLiX) and conducts pangenomic analyses and produces results in the form of text files and figures.
 
-Results will consist of:
+Results will consist of: (Note: these figures are from mock data)
 
 Pangenome stats
 ![Pangenome stats](https://github.com/PlantDr430/images/blob/master/Pangenome_stats.png)
