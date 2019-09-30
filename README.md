@@ -126,7 +126,7 @@ antismash
 Parent_directory
     |
     |
-    +--Orthogroups.txt
+    +--Orthogroups.txt <- make sure protein_IDs in each cluster match fasta headers in respecitve fasta files
     |
     |
     +--Isolate1 
