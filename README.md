@@ -19,10 +19,10 @@ Pangenome fluidity - follows [pangenome_fluidity](https://github.com/PlantDr430/
 Protein length boxplots for pangenome category (lettering for significance with Kruskal-Wallis Test)
 ![Protein lengths](https://github.com/PlantDr430/images/blob/master/Protein_lengths.png)
 
-Bar charts for all analyses specified at run time showing proportion of clusters in each pangenomic category if >= 50% of species represented in the cluster have at least 1 protein with the respective annotation (i.e. if 5 or more genomes, out of 10 total genomes, have 1 protein in a cluster that has hits for a secreted protein then that cluster will be classifed as a secreted protein cluster) (this can be altered at run time with -p/--percent) (letters for significance with Fischer Exact test)
+Bar charts for all analyses specified at run time showing proportion of clusters in each pangenomic category if >= 50% of species represented in the cluster have at least 1 protein with the respective annotation (i.e. if 5 or more genomes, out of 10 total genomes, have 1 protein in a cluster that has hits for a secreted protein then that cluster will be classifed as a secreted protein cluster) (this can be altered at run time with -p/--percent) (letters for significance with Fischer Exact test). Note: The script will create each bar graph as a separate file, this is just a respresentation.
 ![Bar charts](https://github.com/PlantDr430/images/blob/master/bar_graphs.jpg)
 
-Gene Ontology Enrichment Analyses for all types (Biological Process, Molecular Function, and Cellular Component) and all Pangenome categories (Core, Accessory, and Singleton)
+Gene Ontology Enrichment Analyses for all types (Biological Process, Molecular Function, and Cellular Component) and all Pangenome categories (Core, Accessory, and Singleton). Note: The script will create each heat map as a separate file, this is just a representation.
 ![GOEA](https://github.com/PlantDr430/images/blob/master/Accessory_GOEA.jpg)
 
 ## Other output files
