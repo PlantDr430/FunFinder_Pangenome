@@ -5,7 +5,7 @@
 
 This script was written to produce many of the results and figures in Wyka et al. (in preparation). It takes output files from [Funannotate](https://github.com/nextgenusfs/funannotate) and the Orthogroups.txt output from [Orthofinder](https://github.com/davidemms/OrthoFinder) (or similar programs such as OrthoMCL and SiLiX) and conducts pangenomic analyses and produces results in the form of text files and figures.
 
-Results will consist of: (Note: these figures are from mock data)
+Results will consist of: (Note: these figures are from mock data as I can't post figures I intend publish)
 
 Pangenome stats
 ![Pangenome stats](https://github.com/PlantDr430/images/blob/master/Pangenome_stats.png)
@@ -14,7 +14,7 @@ Pangenome curve - with power law regression fit
 ![Pangenome curve - with power law regression fit](https://github.com/PlantDr430/images/blob/master/Pangenome_curve.png)
 
 Pangenome fluidity - follows [pangenome_fluidity](https://github.com/PlantDr430/CSU_scripts/blob/master/pangenome_fluidity.py)
-![Pangenome fluidity - computed with bootstraps (resampling)](https://github.com/PlantDr430/images/blob/master/Species_9_pangenome_fluidity.png)
+![Pangenome fluidity](https://github.com/PlantDr430/images/blob/master/Pangenome_fluidity.png)
 
 Protein length boxplots for pangenome category (lettering for significance with Kruskal-Wallis Test)
 ![Protein lengths](https://github.com/PlantDr430/images/blob/master/Protein_lengths.png)
