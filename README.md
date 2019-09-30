@@ -14,7 +14,7 @@ Pangenome curve - with power law regression fit
 ![Pangenome curve - with power law regression fit](https://github.com/PlantDr430/images/blob/master/Pangenome_curve.png)
 
 Pangenome fluidity - computed with bootstraps (resampling)
-![Pangenome fluidity - computed with bootstraps (resampling)](https://github.com/PlantDr430/images/blob/master/Pangenome_fluidity.png)
+![Pangenome fluidity - computed with bootstraps (resampling)](https://github.com/PlantDr430/images/blob/master/Species_9_pangenome_fluidity.png)
 
 Protein length boxplots for pangenome category (lettering for significance with Kruskal-Wallis Test)
 ![Protein lengths](https://github.com/PlantDr430/images/blob/master/Protein_lengths.png)
