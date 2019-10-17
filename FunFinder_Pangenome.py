@@ -360,9 +360,9 @@ def create_ortho_dictionaries(orthogroups_text_file):
             for match in re.finditer(r'([^\s]+)', genes):
                 isolate = match.group(0).split('_')[0]
                 protein = match.group(0)
-                # if not protein in all_protein_dict.keys():
-                    # print(('Warning: Protein {} was found in ortho clusters but was not found in fasta file')
-                    # .format(protein))
+                if not protein in all_protein_dict.keys():
+                    print(('Warning: Protein {} was found in ortho clusters but was not found in fasta file')
+                    .format(protein))
                 iso_list.append(isolate)
                 prot_list.append(protein)
             ortho_iso_dict[cluster] = list(set(iso_list))
@@ -456,7 +456,7 @@ def create_pangenome_stats(sortCount,stats_text_out,stats_fig_out,iso_per_cluste
     plt.tight_layout()
     plt.savefig(stats_fig_out)
     plt.close()
-    
+
     # print out some basic summary files 
     with open(iso_per_cluster, 'w') as iso_p_clus:
         for key, value in ortho_iso_dict.items():
@@ -467,6 +467,26 @@ def create_pangenome_stats(sortCount,stats_text_out,stats_fig_out,iso_per_cluste
     with open(proteins_per_PAN, 'w') as prot_p_PAN:
         for key, value in pan_prot_dict.items():
             prot_p_PAN.write(key+'\t'+' '.join(value)+'\n')
+
+    ##### get protein counts per isolate per orthogroups #####
+    gene_counts_p_isolate_p_cluster = os.path.abspath(os.path.join(result_dir, 'Gene_counts.txt'))
+    gene_count_dict = OrderedDict()
+    for cluster, proteins in ortho_prot_dict.items():
+        gene_count_dict[cluster] = {i:0 for i in sorted(iso_list)}
+        for match in re.finditer(r'([^\s]+)', ' '.join(proteins)):
+            isolate = match.group(0).split('_')[0]
+            gene_count_dict[cluster][isolate] = gene_count_dict[cluster][isolate] + 1
+    output_list = []
+    for cluster, isolate in gene_count_dict.items():
+        temp_list = [cluster]
+        for iso in sorted(iso_list):
+            temp_list.append(str(gene_count_dict[cluster][iso]))
+        output_list.append(temp_list)
+    with open(gene_counts_p_isolate_p_cluster, 'w') as gene_count_out:
+        header = ['Clusters'] + [x for x in sorted(iso_list)]
+        gene_count_out.write('\t'.join(header) + '\n')
+        for line in output_list:
+            gene_count_out.write('\t'.join(line) + '\n')
 
     return Core, Accessory, Singleton, Pangenome
 
@@ -577,6 +597,8 @@ def determine_pangenome_fluidity(fluidity_figure, fluidity_results):
             split_combos = [combos[i:i + chunk] for i in range(0, len(combos), chunk)]
             pool = Pool(processes=args.cpus)
             results = pool.imap(subsample_multiprocess, split_combos)
+            pool.close()
+            pool.join()
             sub_fluid_dict[N].append(results)
         else:
             last_run = subsample_multiprocess(N_combos)
@@ -1004,25 +1026,7 @@ def analyses_to_clusters(dictionary, dictionary_out, outfile1, outfile2):
     outfile2.write('Number of accessory proteins:\t' + str(len(single_prot))+ '\n')
     return
 
-def main_analyses_loop(loop_dir, isolate_dir, iso_fasta_dir, iso_work_dir):
-    for cluster, proteins in complete_results.items(): # complete results = final excel file
-        cluster_size = str(len(proteins))
-        for k, v in pan_cluster_dict.items():
-            if cluster in pan_cluster_dict['Core']:
-                category = 'Core'
-            elif cluster in pan_cluster_dict['Accessory']:
-                category = 'Accessory'
-            else:
-                category = 'Singleton'
-        for prot in proteins:
-            id = prot[0].split('_')[0] # should be locus prefix tag
-            prot.insert(0, id) # will end up as prot[3]
-            prot.insert(0,category) # will end up as prot[2]
-            prot.insert(0,cluster_size) # will end up as prot[1]
-            prot.insert(0,cluster) # will end up as prot[0]
-            # so far: complete results = {Cluster1 : [[cluster, cluster_size, PAN_category, locus_ID, protein_ID],[]],
-            #                             Cluster2 : [[cluster, cluster_size, PAN_category, locus_ID, protein_ID],[]]}
-
+def main_analyses_loop(loop_dir, isolate, isolate_dir, iso_fasta_dir, iso_work_dir):
     # annotation dictionaries
     gene_products = {} # {Protein ID : gene product name}
     phobius_s = {} # {Protein ID : 'Yes' for a phobius secreted hit}
@@ -1315,10 +1319,7 @@ def perform_gene_ontology_enrichment():
                         plt.savefig(goea_figure)
                         plt.close()
 
-def analyses_report(input_file, count_dictionary):
-    core_list = []
-    acc_list = []
-    single_list = []
+def analyses_report(input_file, count_dictionary, core_list, acc_list, single_list):
     for i, line in enumerate(input_file):
         if i == 0:
             category, core_clusters = line.split(':\t')
@@ -1336,12 +1337,33 @@ def analyses_report(input_file, count_dictionary):
                         acc_list.append(acc_hit.group(0))
         elif i == 4:
             category, single_clusters = line.split(':\t')
-            for single_hit in re.finditer(r'(\w+\d+)', single_clusters):
-                if single_hit.group(0) in count_dictionary.keys():
-                    # if (len(count_dictionary[single_hit.group(0)])/
-                    # len(ortho_iso_dict[single_hit.group(0)])) >= args.percent:
+            if single_clusters:
+                for single_hit in re.finditer(r'([^\s]+)', single_clusters):
                     single_list.append(single_hit.group(0))
-    return core_list, acc_list, single_list
+            else:
+                pass
+            single_list = list(set(single_list))
+
+def orthogroups_classified_output(core_list, acc_list, single_list, output):
+    max_length = max(len(core_list),len(acc_list),len(single_list))
+    with open(output, 'w') as classified_out:
+        report = csv.writer(classified_out, delimiter = '\t', lineterminator='\n')
+        report.writerow(['Core', 'Accessory', 'Singleton'])
+        for i in range(0, max_length):
+            row = []
+            if i < len(core_list):
+                row.append(core_list[i])
+            else:
+                row.append('')
+            if i < len(acc_list):
+                row.append(acc_list[i])
+            else:
+                row.append('')
+            if i < len(single_list):
+                row.append(single_list[i])
+            else:
+                row.append('')
+            report.writerow(row)
 
 def write_final_results_and_figure(loop_dir):
     dictionary_list = ['metabolites','dbcan','transmembrane','secretome','effectors','conserved','merops']
@@ -1353,40 +1375,48 @@ def write_final_results_and_figure(loop_dir):
         # read in results from main analyses loop
         with open(overall_results, 'r') as overall_analysis:
             if dict == 'secretome':
-                secretome_results = analyses_report(overall_analysis, secretome_count_dict)
-                total_core_secretome = secretome_results[0]
-                total_acc_secretome = secretome_results[1]
-                total_single_secretome = secretome_results[2]
+                secretome_results = analyses_report(overall_analysis, secretome_count_dict, 
+                total_core_secretome, total_acc_secretome, total_single_secretome)
             elif dict == 'effectors':
-                effector_results = analyses_report(overall_analysis, effector_count_dict)
-                total_core_effectors = effector_results[0]
-                total_acc_effectors = effector_results[1]
-                total_single_effectors = effector_results[2]
+                effector_results = analyses_report(overall_analysis, effector_count_dict, 
+                total_core_effectors, total_acc_effectors, total_single_effectors)
             elif dict == 'transmembrane':
-                transmembrane_results = analyses_report(overall_analysis, transmembrane_count_dict)
-                total_core_transmembrane = transmembrane_results[0]
-                total_acc_transmembrane = transmembrane_results[1]
-                total_single_transmembrane = transmembrane_results[2]
+                transmembrane_results = analyses_report(overall_analysis, transmembrane_count_dict, 
+                total_core_transmembrane, total_acc_transmembrane, total_single_transmembrane)
             elif dict == 'conserved':
-                conserved_results = analyses_report(overall_analysis, conserved_count_dict)
-                total_core_conserved = conserved_results[0]
-                total_acc_conserved = conserved_results[1]
-                total_single_conserved = conserved_results[2]
+                conserved_results = analyses_report(overall_analysis, conserved_count_dict, 
+                total_core_conserved, total_acc_conserved, total_single_conserved)
             elif dict == 'metabolites':
-                metabolite_results = analyses_report(overall_analysis, metabolite_count_dict)
-                total_core_metabolites = metabolite_results[0]
-                total_acc_metabolites = metabolite_results[1]
-                total_single_metabolites = metabolite_results[2]
+                metabolite_results = analyses_report(overall_analysis, metabolite_count_dict, 
+                total_core_metabolites, total_acc_metabolites, total_single_metabolites)
             elif dict == 'merops':
-                merops_results = analyses_report(overall_analysis, merops_count_dict)
-                total_core_merops = merops_results[0]
-                total_acc_merops = merops_results[1]
-                total_single_merops = merops_results[2]
+                merops_results = analyses_report(overall_analysis, merops_count_dict, 
+                total_core_merops, total_acc_merops, total_single_merops)
             elif dict == 'dbcan':
-                dbcan_results = analyses_report(overall_analysis, dbcan_count_dict)
-                total_core_dbcan = dbcan_results[0]
-                total_acc_dbcan = dbcan_results[1]
-                total_single_dbcan = dbcan_results[2]
+                dbcan_results = analyses_report(overall_analysis, dbcan_count_dict, 
+                total_core_dbcan, total_acc_dbcan, total_single_dbcan)
+
+    # write out classified orthogroups files
+    secretome_orthogroups = os.path.abspath(os.path.join(result_dir, 'Secretome_orthogroups.txt'))
+    orthogroups_classified_output(total_core_secretome, total_acc_secretome, total_single_secretome, secretome_orthogroups)
+
+    effector_orthogroups = os.path.abspath(os.path.join(result_dir, 'Effector_orthogroups.txt'))
+    orthogroups_classified_output(total_core_effectors, total_acc_effectors, total_single_effectors, effector_orthogroups)
+
+    transmembrane_orthogroups = os.path.abspath(os.path.join(result_dir, 'Transmembrane_orthogroups.txt'))
+    orthogroups_classified_output(total_core_transmembrane, total_acc_transmembrane, total_single_transmembrane, transmembrane_orthogroups)
+
+    conserved_orthogroups = os.path.abspath(os.path.join(result_dir, 'Conserved_orthogroups.txt'))
+    orthogroups_classified_output(total_core_conserved, total_acc_conserved, total_single_conserved, conserved_orthogroups)
+
+    metabolite_orthogroups = os.path.abspath(os.path.join(result_dir, 'Metabolite_orthogroups.txt'))
+    orthogroups_classified_output(total_core_metabolites, total_acc_metabolites, total_single_metabolites, metabolite_orthogroups)
+
+    merop_orthogroups = os.path.abspath(os.path.join(result_dir, 'Merop_orthogroups.txt'))
+    orthogroups_classified_output(total_core_merops, total_acc_merops, total_single_merops, merop_orthogroups)
+
+    dbcan_orthogroups = os.path.abspath(os.path.join(result_dir, 'CAZy_orthogroups.txt'))
+    orthogroups_classified_output(total_core_dbcan, total_acc_dbcan, total_single_dbcan, dbcan_orthogroups)
 
     # write out final results
     final_results = os.path.abspath(os.path.join(result_dir, 'Pangenome_analyses.txt'))
@@ -1497,7 +1527,6 @@ def create_final_excel_file(excel_report):
             for prot in proteins:
                 remove_locus = prot.pop(3) # remove locus_prefix as it was just used for indexing previously
                 excel.writerow(prot)
-    return
 
 
 if __name__ == "__main__":
@@ -1578,6 +1607,24 @@ if __name__ == "__main__":
     go_count_dict = {} # {Protein cluster_GO-ID : list of isolates containing this GO-ID in this cluster}
     # complete_results = {Protein cluster : nested list of all proteins in cluster}
     complete_results = {cluster : [[prot] for prot in ortho_prot_dict[cluster]] for cluster in ortho_prot_dict.keys()}
+    for cluster, proteins in complete_results.items(): # complete results = final excel file
+    cluster_size = str(len(proteins))
+    for k, v in pan_cluster_dict.items():
+        if cluster in pan_cluster_dict['Core']:
+            category = 'Core'
+        elif cluster in pan_cluster_dict['Accessory']:
+            category = 'Accessory'
+        else:
+            category = 'Singleton'
+    for prot in proteins:
+        id = prot[0].split('_')[0] # should be locus prefix tag
+        prot.insert(0, id) # will end up as prot[3]
+        prot.insert(0,category) # will end up as prot[2]
+        prot.insert(0,cluster_size) # will end up as prot[1]
+        prot.insert(0,cluster) # will end up as prot[0]
+        # so far: complete results = {Cluster1 : [[cluster, cluster_size, PAN_category, locus_ID, protein_ID],[]],
+        #                             Cluster2 : [[cluster, cluster_size, PAN_category, locus_ID, protein_ID],[]]}
+
     isolate_count = 0 
     for dir in input_directory:
         isolate_count += 1
@@ -1586,7 +1633,7 @@ if __name__ == "__main__":
         iso_fasta_dir = os.path.abspath(os.path.join(isolate_dir, 'fasta_results'))
         iso_work_dir = os.path.abspath(os.path.join(isolate_dir, 'work_dir'))
         print('Working on {} {}/{} isolates'.format(isolate, isolate_count, iso_num))
-        main_analyses_loop(dir, isolate_dir, iso_fasta_dir, iso_work_dir)
+        main_analyses_loop(dir, isolate, isolate_dir, iso_fasta_dir, iso_work_dir)
 
     #### Perform gene ontology enrichment ####
     if 'iprscan' in analyses and not args.NO_GO:
@@ -1595,11 +1642,34 @@ if __name__ == "__main__":
 
     #### write final analyses results from finished loop results####
     print('Writing out final results from analyses and creating bar graphs')
+    total_core_secretome = []
+    total_acc_secretome = []
+    total_single_secretome = []
+    total_core_effectors = []
+    total_acc_effectors = []
+    total_single_effectors = []
+    total_core_transmembrane = []
+    total_acc_transmembrane = []
+    total_single_transmembrane = []
+    total_core_conserved = []
+    total_acc_conserved = []
+    total_single_conserved = []
+    total_core_metabolites = []
+    total_acc_metabolites = []
+    total_single_metabolites = []
+    total_core_merops = []
+    total_acc_merops = []
+    total_single_merops = []
+    total_core_dbcan = []
+    total_acc_dbcan = []
+    total_single_dbcan = []
     for dir in input_directory:
         write_final_results_and_figure(dir)
 
     #### Create final excel report ####
     print('Creating final excel spreadsheet of pangenomic information')
     pangenome_excel_results = os.path.abspath(os.path.join(result_dir, 'All_pangenome_info.txt'))
+    if os.path.exists(pangenome_excel_results):
+        os.remove(pangenome_excel_results)
     create_final_excel_file(pangenome_excel_results)
 
