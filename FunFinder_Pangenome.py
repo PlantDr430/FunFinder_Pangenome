@@ -20,15 +20,19 @@ import scipy.stats as stats
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.ticker as mtick
+import matplotlib as mpl
 from multiprocessing import Pool
 from scipy.optimize import curve_fit
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterable
 from scipy.optimize import differential_evolution
+import matplotlib.font_manager as font_manager
+from statsmodels.stats.multitest import multipletests
 
 currentdir = os.getcwd()
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
+mpl.rc('font',family='Times New Roman')
 
 class MyFormatter(argparse.RawTextHelpFormatter):
     def __init__(self, prog):
@@ -70,6 +74,24 @@ parser.add_argument(
     default = 0.05,
     type = float,
     help = 'Pvalue cutoff for Fischer exact test (annotation bar charts) [default: 0.05]',
+    metavar=''
+)
+parser.add_argument(
+    '-ma',
+    '--multialpha',
+    default = 0.05,
+    type=float,
+    help = 'Alpha cut off for multitest correction [default = 0.05]',
+    metavar=''
+)
+parser.add_argument(
+    '-multi',
+    '--multitest',
+    default='fdr_bh',
+    choices=['bonferroni', 'sidak', 'holm-sidak','holm','simes-hochberg','hommel',\
+        'fdr_bh','fdr_by','fdr_tsbh','fdr_tsbky'],
+    help = 'Multi-test correction to use [bonferroni|sidak|holm-sidak|holm|'\
+        'simes-hochberg|hommel|fdr_bh|fdr_by|fdr_tsbh|fdr_tsbky] [defaut: fdr_bh]',
     metavar=''
 )
 parser.add_argument(
@@ -226,7 +248,7 @@ if not analyses == 'none':
             os.makedirs(os.path.join(isolate_dir, 'work_dir'))
         iso_work_dir = os.path.abspath(os.path.join(isolate_dir, 'work_dir'))
         for a in analyses:
-            found_file = [files.lower() for files in os.listdir(dir) if a in files.lower()] # look for file with analysis
+            found_file = [files for files in os.listdir(dir) if a in files.lower()] # look for file with analysis
             if a == 'antismash':
                 if len(found_file) == 2: # There should be two antismash files that we will concatenate into one
                     anti_1 = os.path.abspath(os.path.join(dir, found_file[0]))
@@ -253,20 +275,17 @@ if not analyses == 'none':
                         'executable found. Please provide pre-computed effector file or make sure parent directoy ,'\
                         'of EffectorP executable is located in $PATH')
                         sys.exit()
-            elif a not in ''.join(found_file): # check to see if each analysis file is found for analyses in args
+            elif a not in ''.join(found_file).lower(): # check to see if each analysis file is found for analyses in args
                 print('ERROR: Did not find {} file for isolate {} in {}'.format(a, isolate, dir))
                 sys.exit()
-        fasta_ext = ['.fasta', '.fa', '.fas', '.fna']
-        for ext in fasta_ext: # look for protein fasta file for each isolate
-            found_file = [files for files in os.listdir(dir) if ext in files]
-            if not found_file:
-                print('ERROR: Did not find protein FASTA file for isolate {} in {}'.format(isolate, dir))
-                sys.exit()
-            with open(os.path.join(dir,''.join(found_file)), 'r') as prot_fasta,open(combined_fasta, 'a') as cat_fasta:
-                contents = prot_fasta.readlines()
-                cat_fasta.write(''.join(contents))
-                iso_locus_prefix_dict[isolate] = (''.join(contents[0]).split('_',1)[0][1:])
-            break
+        found_file = [files for files in os.listdir(dir) if 'prot' in files]
+        if not found_file:
+            print('ERROR: Did not find protein FASTA file for isolate {} in {}'.format(isolate, dir))
+            sys.exit()
+        with open(os.path.join(dir,''.join(found_file)), 'r') as prot_fasta,open(combined_fasta, 'a') as cat_fasta:
+            contents = prot_fasta.readlines()
+            cat_fasta.write(''.join(contents))
+            iso_locus_prefix_dict[isolate] = (''.join(contents[0]).split('_',1)[0][1:])
 
 # Check to make sure Orthogroups file is present
 for files in os.listdir(input_dir):
@@ -360,6 +379,7 @@ def create_ortho_dictionaries(orthogroups_text_file):
             for match in re.finditer(r'([^\s]+)', genes):
                 isolate = match.group(0).split('_')[0]
                 protein = match.group(0)
+
                 if not protein in all_protein_dict.keys():
                     print(('Warning: Protein {} was found in ortho clusters but was not found in fasta file')
                     .format(protein))
@@ -428,14 +448,14 @@ def create_pangenome_stats(sortCount,stats_text_out,stats_fig_out,iso_per_cluste
     df=pd.read_csv(pangenome_stats, delimiter='\t', header=0) # read is stats and create figure
     df.drop(df.tail(4).index,inplace=True) # drop bottom 4 rows of input stats file
     cluster_data=(np.array([int(x) for x in df['Number of gene clusters'].tolist()])) # get x-axis values
-    fig, ax = plt.subplots(figsize=(10,4))
+    fig, ax = plt.subplots(figsize=(6.69,3), dpi=1200)
     ax.set_axisbelow(True)
     plt.minorticks_on()
-    plt.grid(which='minor', axis='y', color='white', linestyle='--', alpha=0.3)
-    ax.yaxis.grid(True, linestyle='-', which='major', color='white')
+    plt.grid(which='minor', axis='y', color='white', linestyle='--', alpha=0.3, linewidth='0.75')
+    ax.yaxis.grid(True, linestyle='-', which='major', color='white', linewidth='0.75')
     ax.tick_params(axis='x', which='minor', bottom=False)
     ax.set_facecolor('gainsboro')
-    c_bar = plt.bar(df['Species Combinations'], cluster_data, width=0.85, linewidth=1)
+    c_bar = plt.bar(df['Species Combinations'], cluster_data, width=0.85, linewidth=0.75)
     for i in range(0, len(c_bar)): # loop through bars for specific colors
         if i == 0:
             c_bar[i].set_color('red') # core bar
@@ -447,16 +467,22 @@ def create_pangenome_stats(sortCount,stats_text_out,stats_fig_out,iso_per_cluste
             c_bar[i].set_color('yellow') # singleton bars
             c_bar[i].set_edgecolor('black')
     plt.xlim(-1,iso_num)
-    plt.xlabel('Number of genomes')
-    plt.ylabel('Number of protein clusters')
+    plt.xlabel('Number of genomes', fontname='Times New Roman', fontsize=12)
+    plt.ylabel('Number of protein clusters', fontname='Times New Roman', fontsize=12)
     red_patch = mpatches.Patch(color='red', label='Core')
     orange_patch = mpatches.Patch(color='orange', label='Accessory')
     yellow_patch = mpatches.Patch(color='yellow', label='Singleton')
-    plt.legend(handles=[red_patch,orange_patch,yellow_patch], framealpha=1.0)
+    font = font_manager.FontProperties(family= 'Times New Roman' ,
+                                   style='normal', size=12)
+    plt.legend(handles=[red_patch,orange_patch,yellow_patch], framealpha=1.0, prop=font)
+    
+    plt.yticks(fontname='Times New Roman', fontsize=12)
+    plt.xticks(fontname='Times New Roman', fontsize=12)
+    
     plt.tight_layout()
     plt.savefig(stats_fig_out)
     plt.close()
-
+    
     # print out some basic summary files 
     with open(iso_per_cluster, 'w') as iso_p_clus:
         for key, value in ortho_iso_dict.items():
@@ -618,7 +644,7 @@ def determine_pangenome_fluidity(fluidity_figure, fluidity_results):
     x_labels = np.array([i for i in range(3, iso_num + 1)])
     stderr_bottom = np.array([(pan_fluidity - v) for v in total_stderr])
     stderr_top = np.array([(pan_fluidity + v) for v in total_stderr])
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(dpi=1200)
     # try to determine best initial parameters for curve fittin
     try: # Still got problems sometimes with fitting curves, this temporary solution seems to be working
         geneticParameters_top = generate_Initial_Parameters(x_labels, stderr_top, exponential)
@@ -650,18 +676,18 @@ def determine_pangenome_fluidity(fluidity_figure, fluidity_results):
     ax.set_axisbelow(True)
     plt.minorticks_on()
     plt.grid(which='minor', axis='y', color='white', linestyle='--', alpha=0.3)
-    ax.yaxis.grid(True, linestyle='-', linewidth='1', which='major', color='white')
-    ax.xaxis.grid(True, linestyle='-', linewidth='1', which='major', color='white', alpha=0.5)
+    ax.yaxis.grid(True, linestyle='-', linewidth='0.75', which='major', color='white')
+    ax.xaxis.grid(True, linestyle='-', linewidth='0.75', which='major', color='white', alpha=0.5)
     ax.tick_params(axis='x', which='minor', bottom=False)
     ax.set_facecolor('gainsboro')
-    plt.plot(x_labels, y_fluidity_values, ls='--', lw=1, color='black') # plot y-values of fluidity
+    plt.plot(x_labels, y_fluidity_values, ls='--', lw=0.75, color='black') # plot y-values of fluidity
     plt.xticks(np.arange(x_labels[0], x_labels[len(x_labels)-1]+1, 1.0)) # make sure x interval is 1
     plt.xlim(x_labels[0], x_labels[len(x_labels)-1]) # adjust x limit so it starts with 3 at 0
     max_y = max(stderr_top)
     min_y = min(stderr_bottom)
     plt.ylim((min_y - min_y*0.15), (max_y + max_y*0.15))
-    plt.xlabel('Number of genomes sampled')
-    plt.ylabel('Fluidity, '+u'\u03C6')
+    plt.xlabel('Number of genomes sampled', fontname='Times New Roman')
+    plt.ylabel('Fluidity, '+u'\u03C6', fontname='Times New Roman')
     plt.tight_layout()
     plt.savefig(fluidity_figure)
     plt.close()
@@ -751,11 +777,11 @@ def determine_pangenome_curve(curve_figure, curve_results):
 
     # create pangenome curve figure
     df=pd.read_csv(curve_results, delimiter='\t', header=0) # read curve results and create figure
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(dpi=1600, figsize=(6.69,3))
     ax.set_axisbelow(True)
     plt.minorticks_on()
-    plt.grid(which='minor', color='white', linestyle='--', alpha=0.3)
-    ax.grid(which='major', linestyle='-', linewidth='1', color='white')
+    plt.grid(which='minor', color='white', linestyle='--', alpha=0.3, linewidth='0.75')
+    ax.grid(which='major', linestyle='-', linewidth='0.75', color='white')
     ax.set_facecolor('gainsboro')
     x_data = df['Genomes']
     plt.scatter(x_data, df['Core'], c='red', label='Core')
@@ -772,9 +798,16 @@ def determine_pangenome_curve(curve_figure, curve_results):
     popt_pan, pcov_pan = curve_fit(powerlaw, x_power, pan_avg, p0_pan, maxfev=5000)
     plt.plot(x_power, powerlaw(x_power, *popt_core), '-', color='black')
     plt.plot(x_power, powerlaw(x_power, *popt_pan), '-', color='black')
-    plt.xlabel('Number of genomes sampled')
-    plt.ylabel('Number of gene clusters')
-    plt.legend(framealpha=1.0)
+    plt.xlabel('Number of genomes sampled', fontname='Times New Roman', fontsize=12)
+    plt.ylabel('Number of gene clusters', fontname='Times New Roman', fontsize=12)
+    
+    font = font_manager.FontProperties(family='Times New Roman',
+                                   style='normal', size=12)
+    plt.legend(framealpha=1.0, prop=font)
+    
+    plt.yticks(fontname = 'Times New Roman', fontsize=12)
+    plt.xticks(fontname = 'Times New Roman', fontsize=12)
+    
     plt.tight_layout()
     plt.savefig(curve_figure)
     plt.close()
@@ -841,14 +874,15 @@ def determine_pangenome_protein_lengths(length_figure, protein_lengths):
 
     # create boxplots of protein lengths
     df=pd.read_csv(protein_lengths, delimiter='\t', header=0)
-    core_list = df['Core'].values.tolist()
-    acc_list = df['Accessory'].values.tolist()
-    single_list = df['Singleton'].values.tolist()
-    w1v2, p1v2 = stats.kruskal(core_list, acc_list, nan_policy='omit')
-    w1v3, p1v3 = stats.kruskal(core_list, acc_list, nan_policy='omit')
-    w2v3, p2v3 = stats.kruskal(core_list, acc_list, nan_policy='omit')
+    core_list = df['Core']
+    acc_list = df['Accessory']
+    single_list = df['Singleton']
+    w1v2, p1v2 = stats.mannwhitneyu(core_list.dropna(), acc_list.dropna())
+    w1v3, p1v3 = stats.mannwhitneyu(core_list.dropna(), acc_list.dropna())
+    w2v3, p2v3 = stats.mannwhitneyu(core_list.dropna(), acc_list.dropna())
     kruskal_labels = sig_letters(args.kruskal_pvalue, p1v2, p1v3, p2v3)
-    fig, ax = plt.subplots()
+
+    fig, ax = plt.subplots(dpi=600, figsize=(4,4))
     lengths = np.column_stack((df['Core'], df['Accessory'], df['Singleton']))
     mask = ~np.isnan(lengths)
     filter_lengths = [d[m] for d, m in zip(lengths.T, mask.T)]
@@ -861,23 +895,29 @@ def determine_pangenome_protein_lengths(length_figure, protein_lengths):
     ax.set_facecolor('gainsboro')
     ax.axvline(x=1.5,color='white', linewidth='1') # insert line to separate 1st and 2nd boxplot
     ax.axvline(x=2.5,color='white', linewidth='1') # insert line to separate 2nd and 3rd boxplot
-    bp = plt.boxplot(filter_lengths, 0, '', patch_artist=True) # don't plot outliers
+    bp = plt.boxplot(filter_lengths, 0, '', patch_artist=True, widths=0.75) # don't plot outliers
     colors = ['red', 'orange', 'yellow']
     for patch, color in zip(bp['boxes'], colors):
         patch.set_facecolor(color)
-    plt.setp(bp['boxes'], linewidth=2)
-    plt.setp(bp['whiskers'], color='black', linewidth=2)
-    plt.setp(bp['medians'], color='black', linewidth=2)
-    plt.setp(bp['caps'], color='black', linewidth=2)
+    plt.setp(bp['boxes'], linewidth=1.5)
+    plt.setp(bp['whiskers'], color='black', linewidth=1.5)
+    plt.setp(bp['medians'], color='black', linewidth=1.5)
+    plt.setp(bp['caps'], color='black', linewidth=1.5)
     pos = range(len(bp['boxes']))
     for tick, label in zip(pos, kruskal_labels): # loop through and place significance letters above median position
         median_pos = bp['medians'][tick].get_ydata()[0]
         label_pos = median_pos - (median_pos * 0.01)
         ax.text(pos[tick] + 1, label_pos, 
-        label, ha='center', va='bottom', fontsize=12)
-    plt.xlabel('Pangenome category')
-    plt.ylabel('Protein length (aa)')
+        label, ha='center', va='bottom', fontsize=12, fontname='Times New Roman')
+    plt.xlabel('Pangenome category', fontname='Times New Roman', fontsize=12)
+    plt.ylabel('Protein length (aa)', fontname='Times New Roman', fontsize=12)
+
+    plt.yticks(fontname = 'Times New Roman', fontsize=12)
+    plt.xticks(fontname = 'Times New Roman', fontsize=12)
+
     plt.tight_layout()
+    # plt.show()
+    # sys.exit()
     plt.savefig(length_figure)
     plt.close()
 
@@ -886,9 +926,9 @@ def parse_phobius(infile, secret_dict, trans_dict):
         for line in files:
             if not 'PREDICTION' in line.upper():
                 column = line.split('\t')
-                if column[2] == 'Y': #column[1] == '0' and :
+                if column[2] == 'Y':
                     secret_dict[column[0]] = ['Secreted']
-                elif int(column[1]) > 0: # and column[2] != 'Y':
+                elif int(column[1]) > 0:
                     trans_dict[column[0]] = [column[1]]
     return
 
@@ -915,7 +955,7 @@ def parse_annotations(infile, anno_dict):
         for line in files:
             column = line.split('\t')
             if 'go' in column[1].lower() or column[1].lower() == 'name':
-                continue
+                pass
             elif 'product' in column[1].lower():
                 product_list = anno_dict.get(column[0], [])
                 anno_dict[column[0]] = product_list + [column[2].strip()]
@@ -960,7 +1000,8 @@ def parse_go(infile, anno_dict, anno_count_dict):
             column = line.split('\t')
             if 'go' in column[1].lower():
                 go = 'GO:'+column[2].split('|')[1]
-                if go_count[go] >= 5:
+                if go_count[go] >= 5: # only accept GO terms if term is present in at least 5 genes of a genome
+                # if go_count[go] >= 0:
                     filter_list = filter_go_dict.get(column[0], [])
                     filter_go_dict[column[0]] = filter_list + [go]
                     filter_go_dict[column[0]] = list(set(filter_go_dict[column[0]])) # remove duplicates if any
@@ -995,6 +1036,11 @@ def dict_to_fasta(outfile, dictionary):
     return
 
 def analyses_to_clusters(dictionary, dictionary_out, outfile1, outfile2):
+    '''Write out cluster and protein classification results for given input isolate. 
+    Also, create dictionary of clusters with list of isolates having a protein classified 
+    as such (i.e. a Effector dictionary of all effector cluster with values of list of isolates 
+    having an effector protein in that cluster).
+    '''
     temp_dict = {}
     for gene in dictionary.keys():
         for key, value in ortho_prot_dict.items():
@@ -1090,24 +1136,51 @@ def main_analyses_loop(loop_dir, isolate, isolate_dir, iso_fasta_dir, iso_work_d
     secretome = { i : ['Yes'] for i in secret_inter} # {Protein ID : 'Yes' for secretome}
     transmembrane = {i : ['Yes'] for i in trans_inter} # {Protein ID : 'Yes' for transmembrane}
     conserved = {i : ['Yes'] for i in conserve_inter} # {Protein ID : 'Yes' for conserved}
-    # unknown metabolites are found in antismash clusters but don't have hits to smCOGs or backbones
-    unknown_metabolites = {i : ['Yes'] for i in metabolite_inter} # {Protein ID : for unknown metabolite} 
 
     # Write out fasta files from dictionaries
-    secretome_fasta = os.path.abspath(os.path.join(iso_fasta_dir, 'secretome.fasta'))
-    dict_to_fasta(secretome_fasta, secretome)
+    backbone_text = os.path.abspath(os.path.join(isolate_dir, 'backbone_proteins.txt'))
+    with open(backbone_text, 'w') as ba_t:
+        ba_t.write('\n'.join([key for key in backbone_list]))
     backbone_fasta = os.path.abspath(os.path.join(iso_fasta_dir, 'metabolite_backbones.fasta'))
     dict_to_fasta(backbone_fasta, backbone)
+
+    smcog_text = os.path.abspath(os.path.join(isolate_dir, 'smcog_proteins.txt'))
+    with open(smcog_text, 'w') as sm_t:
+        sm_t.write('\n'.join([key for key in smcog_list]))
     smcog_fasta = os.path.abspath(os.path.join(iso_fasta_dir, 'metabolite_smcogs.fasta'))
     dict_to_fasta(smcog_fasta, smcog)
-    unmetabolites_fasta = os.path.abspath(os.path.join(iso_fasta_dir, 'metabolite_unknowns.fasta'))
-    dict_to_fasta(unmetabolites_fasta, unknown_metabolites)
+
+    allmetabolites_text = os.path.abspath(os.path.join(isolate_dir, 'all_metabolite_proteins.txt'))
+    with open(allmetabolites_text, 'w') as al_t:
+        al_t.write('\n'.join([key for key in metabolites_list]))
+    
+    secretome_text = os.path.abspath(os.path.join(isolate_dir, 'secreted_proteins.txt'))
+    with open(secretome_text, 'w') as se_t:
+        se_t.write('\n'.join([key for key in secretome.keys()]))
+    secretome_fasta = os.path.abspath(os.path.join(iso_fasta_dir, 'secretome.fasta'))
+    dict_to_fasta(secretome_fasta, secretome)
+
+    transmembrane_text = os.path.abspath(os.path.join(isolate_dir, 'transmembrane_proteins.txt'))
+    with open(transmembrane_text, 'w') as tr_t:
+        tr_t.write('\n'.join([key for key in transmembrane.keys()]))
     transmembrane_fasta = os.path.abspath(os.path.join(iso_fasta_dir, 'transmembrane.fasta'))
     dict_to_fasta(transmembrane_fasta, transmembrane)
+
+    conserved_text = os.path.abspath(os.path.join(isolate_dir, 'conserved_domain_proteins.txt'))
+    with open(conserved_text, 'w') as co_t:
+        co_t.write('\n'.join([key for key in conserved.keys()]))
     conserved_fasta = os.path.abspath(os.path.join(iso_fasta_dir, 'conserved_proteins.fasta'))
     dict_to_fasta(conserved_fasta, conserved)
+
+    merops_text = os.path.abspath(os.path.join(isolate_dir, 'merop_proteins.txt'))
+    with open(merops_text, 'w') as me_t:
+        me_t.write('\n'.join([key for key in merops.keys()]))
     merops_fasta = os.path.abspath(os.path.join(iso_fasta_dir, 'merop_proteins.fasta'))
     dict_to_fasta(merops_fasta, merops)
+
+    dbcan_text = os.path.abspath(os.path.join(isolate_dir, 'cazy_proteins.txt'))
+    with open(dbcan_text, 'w') as db_t:
+        db_t.write('\n'.join([key for key in dbcan.keys()]))
     dbcan_fasta = os.path.abspath(os.path.join(iso_fasta_dir, 'cazy_proteins.fasta'))
     dict_to_fasta(dbcan_fasta, dbcan)
 
@@ -1120,6 +1193,9 @@ def main_analyses_loop(loop_dir, isolate, isolate_dir, iso_fasta_dir, iso_work_d
                 subprocess.call([EFFECTORP, '-i', secretome_fasta, '-o', effector_out]
                 , cwd=dir, stdout=eff_log, stderr=eff_log)
         parse_effectors(effector_out, effectors)
+        effector_text = os.path.abspath(os.path.join(isolate_dir, 'effector_proteins.txt'))
+        with open(effector_text, 'w') as ef_t:
+            ef_t.write('\n'.join([key for key in effectors.keys()]))
         effector_fasta = os.path.abspath(os.path.join(iso_fasta_dir, 'effectors.fasta'))
         dict_to_fasta(effector_fasta, effectors)
 
@@ -1216,7 +1292,6 @@ def main_analyses_loop(loop_dir, isolate, isolate_dir, iso_fasta_dir, iso_work_d
     return
 
 def perform_gene_ontology_enrichment():
-    # Perform gene ontology enrichment (GOEA)
     Core_study = os.path.abspath(os.path.join(work_dir, 'core_study.txt'))
     Accessory_study = os.path.abspath(os.path.join(work_dir, 'accessory_study.txt'))
     Singleton_study = os.path.abspath(os.path.join(work_dir, 'singleton_study.txt'))
@@ -1226,6 +1301,7 @@ def perform_gene_ontology_enrichment():
     total_acc_go = []
     total_single_go = []
     association_dict = {} # {Protein cluster : list of GO terms in cluster}
+
     for cluster, isolates in go_count_dict.items():
         clus = cluster.split('_')[0]
         go = cluster.split('_')[1].strip()
@@ -1234,12 +1310,23 @@ def perform_gene_ontology_enrichment():
             association_list = association_dict.get(clus, [])
             association_dict[clus] = association_list + [go]
             association_dict[clus] = list(set(association_dict[clus]))
-            if cluster_pan_dict[clus] == 'Core':
-                total_core_go.append(clus)
-            elif cluster_pan_dict[clus] == 'Accessory':
-                total_acc_go.append(clus)
-            elif cluster_pan_dict[clus] == 'Singleton':
-                total_single_go.append(clus)
+            
+            ##### This filters out clusters that do not have any GO association
+            # if cluster_pan_dict[clus] == 'Core':
+                # total_core_go.append(clus)
+            # elif cluster_pan_dict[clus] == 'Accessory':
+                # total_acc_go.append(clus)
+            # elif cluster_pan_dict[clus] == 'Singleton':
+                # total_single_go.append(clus)
+
+    ### This includes all clusters (with and without GO associations)
+    for k, v in cluster_pan_dict.items():
+        if v == 'Core':
+            total_core_go.append(k)
+        elif v == 'Accessory':
+            total_acc_go.append(k)
+        elif v == 'Singleton':
+            total_single_go.append(k)
     total_core_go = sorted(list(set(total_core_go)))
     total_acc_go = sorted(list(set(total_acc_go)))
     total_single_go = sorted(list(set(total_single_go)))
@@ -1249,7 +1336,10 @@ def perform_gene_ontology_enrichment():
         a_study.write('\n'.join(total_acc_go))
     with open(Singleton_study, 'w') as s_study:
         s_study.write('\n'.join(total_single_go))
-    with open(population, 'w') as pop_out:
+    # with open(population, 'w') as pop_out: # this creates a population list of cluster only with GO association
+        # for k in sorted(association_dict.keys()):
+            # pop_out.write(k + '\n')
+    with open(population, 'w') as pop_out: # this includes a population of all clusters (with and without GO association)
         for k in ortho_iso_dict.keys():
             pop_out.write(k + '\n')
     with open(go_assoc, 'w') as assoc_out:
@@ -1262,11 +1352,12 @@ def perform_gene_ontology_enrichment():
         goea_log = os.path.abspath(os.path.join(work_dir, 'GOEA_{}.log'.format(category)))
         goea_out = os.path.abspath(os.path.join(work_dir, 'GOEA_{}.tsv'.format(category)))
         with open(goea_log, 'w') as logfile:#, with open(study, 'r') as study_file:
-            subprocess.call([ENRICHMENT, study, population, go_assoc, '--method=fdr_bh', 
+            subprocess.call([ENRICHMENT, study, population, go_assoc, 
             '--pval_field=fdr_bh', '--alpha', str(args.alpha), '--pval', str(args.benjamini_pvalue), 
             '--obo', GOBASIC, '--goslim', GOSLIM, '--no_propagate_counts', '--outfile', goea_out
             ], cwd=currentdir, stdout=logfile, stderr=logfile)
     
+    # create figures
     category_list = ['Core', 'Accessory', 'Singleton']
     type_dict = {'BP':'Biological Process', 'MF': 'Molecular Function', 'CC':'Cellular Component'}
     for files in os.listdir(work_dir):
@@ -1276,7 +1367,7 @@ def perform_gene_ontology_enrichment():
                 df = pd.read_csv(fpath, delimiter='\t', header=0)
                 df.drop(df[df['enrichment'] == 'p'].index, inplace=True) # get only rows that are enriched
                 for type in type_dict.keys():
-                    goea_figure = os.path.abspath(os.path.join(result_dir, 'GOEA_{}_{}.png'.format(cat,type)))
+                    goea_figure = os.path.abspath(os.path.join(result_dir, 'GOEA_{}_{}.pdf'.format(cat,type)))
                     GO_type = df['NS'] == type
                     type_df = df[GO_type] # created new dataframes based on current type
                     if not type_df.empty:
@@ -1297,14 +1388,14 @@ def perform_gene_ontology_enrichment():
                         bar_shrink = 1/(2+((len(y_ticks)/100)*len(y_ticks)*0.03))
                         bar_aspect =  2.5+(len(y_ticks)/5)
 
-                        fig, ax= plt.subplots(figsize=fig_size)
+                        fig, ax= plt.subplots(figsize=fig_size, dpi=1200)
                         im = plt.imshow(log_Pvalues, cmap='Blues', aspect=aspect_ratio, extent=(0,len_P,0,len_P))
                         ax.get_xaxis().set_visible(False)
                         ax.set_yticks(ticks=np.arange(0.5, len(y_ticks)))
-                        ax.set_yticklabels(y_ticks, fontsize=12)
+                        ax.set_yticklabels(y_ticks, fontsize=12, fontname = 'Times New Roman')
                         x_value = ax.get_xlim()
                         for i in range(len(y_ticks)):
-                            text = ax.text(np.mean(x_value), i+0.5, go_ticks[i], ha='center', va='center', fontsize=10)
+                            text = ax.text(np.mean(x_value), i+0.5, go_ticks[i], ha='center', va='center', fontsize=10, fontname = 'Times New Roman')
                         if len(y_ticks) <= 4: # slightly different colorbar for plots with low number of y-values
                             cbar = plt.colorbar(im, pad=0.15, shrink=bar_shrink,aspect=bar_aspect)
                         else:
@@ -1313,54 +1404,66 @@ def perform_gene_ontology_enrichment():
                             cbar = plt.colorbar(shrink=bar_shrink, pad=0.15, aspect=bar_aspect)
                         cbar.ax.tick_params(labelsize=12)
                         cbar.ax.invert_yaxis()
-                        cbar.ax.set_title('-log10(P-value)', fontsize=12)
-                        plt.title('{} {}'.format(cat,type_dict[type]), fontsize=16, pad=10)
+                        cbar.ax.set_title('-log10(P-value)', fontsize=12, fontname = 'Times New Roman')
+                        plt.title('{} {}'.format(cat,type_dict[type]), fontsize=16, pad=10, fontname = 'Times New Roman')
                         plt.tight_layout()
                         plt.savefig(goea_figure)
                         plt.close()
 
 def analyses_report(input_file, count_dictionary, core_list, acc_list, single_list):
+    '''Loop through overall results for each isolate and append core, accesory, and singleton 
+    lists if the cluster contains >= args.percent (i.e. 50%) of the total isolates having a protein 
+    classified as such.
+    '''
     for i, line in enumerate(input_file):
         if i == 0:
             category, core_clusters = line.split(':\t')
-            for core_hit in re.finditer(r'(\w+\d+)', core_clusters):
+            for core_hit in re.finditer(r'([^\s]+)', core_clusters):
                 if core_hit.group(0) in count_dictionary.keys():
                     if (len(count_dictionary[core_hit.group(0)])/
                     len(ortho_iso_dict[core_hit.group(0)])) >= args.percent:
                         core_list.append(core_hit.group(0))
+            core_list = list(set(core_list))
         elif i == 2:
             category, acc_clusters = line.split(':\t')
-            for acc_hit in re.finditer(r'(\w+\d+)', acc_clusters):
+            for acc_hit in re.finditer(r'([^\s]+)', acc_clusters):
                 if acc_hit.group(0) in count_dictionary.keys():
                     if (len(count_dictionary[acc_hit.group(0)])/
                     len(ortho_iso_dict[acc_hit.group(0)])) >= args.percent:
                         acc_list.append(acc_hit.group(0))
+            acc_list = list(set(acc_list))
         elif i == 4:
             category, single_clusters = line.split(':\t')
             if single_clusters:
                 for single_hit in re.finditer(r'([^\s]+)', single_clusters):
+                # if single_hit.group(0) in count_dictionary.keys():
+                    # if (len(count_dictionary[single_hit.group(0)])/
+                        # len(ortho_iso_dict[single_hit.group(0)])) >= args.percent:
                     single_list.append(single_hit.group(0))
             else:
                 pass
             single_list = list(set(single_list))
 
 def orthogroups_classified_output(core_list, acc_list, single_list, output):
-    max_length = max(len(core_list),len(acc_list),len(single_list))
+    set_core_list = list(set(core_list))
+    set_acc_list = list(set(acc_list))
+    set_single_list = list(set(single_list))
+    max_length = max(len(set_core_list),len(set_acc_list),len(set_single_list))
     with open(output, 'w') as classified_out:
         report = csv.writer(classified_out, delimiter = '\t', lineterminator='\n')
         report.writerow(['Core', 'Accessory', 'Singleton'])
         for i in range(0, max_length):
             row = []
-            if i < len(core_list):
-                row.append(core_list[i])
+            if i < len(set_core_list):
+                row.append(set_core_list[i])
             else:
                 row.append('')
-            if i < len(acc_list):
-                row.append(acc_list[i])
+            if i < len(set_acc_list):
+                row.append(set_acc_list[i])
             else:
                 row.append('')
-            if i < len(single_list):
-                row.append(single_list[i])
+            if i < len(set_single_list):
+                row.append(set_single_list[i])
             else:
                 row.append('')
             report.writerow(row)
@@ -1436,12 +1539,12 @@ def write_final_results_and_figure(loop_dir):
         results.write('Total core clusters with conserved protein domains:\t' + str(len(set(total_core_conserved))) + '\n')
         results.write('Total accessory clusters with conserved protein domains:\t' + str(len(set(total_acc_conserved))) + '\n')
         results.write('Total singleton clusters with conserved protein domains:\t' + str(len(set(total_single_conserved))) + '\n')
-        results.write('Total core MEROP proteins:\t' + str(len(set(total_core_merops))) + '\n')
-        results.write('Total accessory MEROP proteins:\t' + str(len(set(total_acc_merops))) + '\n')
-        results.write('Total singleton MEROP proteins:\t' + str(len(set(total_single_merops))) + '\n')
-        results.write('Total core CAZy proteins:\t' + str(len(set(total_core_dbcan))) + '\n')
-        results.write('Total accessory CAZy proteins:\t' + str(len(set(total_acc_dbcan))) + '\n')
-        results.write('Total singleton CAZy proteins:\t' + str(len(set(total_single_dbcan))) + '\n')
+        results.write('Total core MEROP protein clusters:\t' + str(len(set(total_core_merops))) + '\n')
+        results.write('Total accessory MEROP protein clusters:\t' + str(len(set(total_acc_merops))) + '\n')
+        results.write('Total singleton MEROP protein cluster:\t' + str(len(set(total_single_merops))) + '\n')
+        results.write('Total core CAZy protein clusters:\t' + str(len(set(total_core_dbcan))) + '\n')
+        results.write('Total accessory CAZy protein clusters:\t' + str(len(set(total_acc_dbcan))) + '\n')
+        results.write('Total singleton CAZy protein clusters:\t' + str(len(set(total_single_dbcan))) + '\n')
         results.write('Total core clusters:\t' + str(len(set(pan_cluster_dict['Core']))) + '\n')
         results.write('Total accessory clusters:\t' + str(len(set(pan_cluster_dict['Accessory']))) + '\n')
         results.write('Total singleton clusters:\t' + str(len(set(pan_cluster_dict['Singleton']))) + '\n')
@@ -1449,7 +1552,7 @@ def write_final_results_and_figure(loop_dir):
     # Create bar graphs for all analyses from final results
     final_analyses = ['metabolite','CAZy','transmembrane','secretome','effector','conserved','MEROP']
     for a in final_analyses:
-        analysis_graph = os.path.abspath(os.path.join(result_dir, a+'_pangenome_bar.png'))
+        analysis_graph = os.path.abspath(os.path.join(result_dir, a+'_pangenome_bar.pdf'))
         analysis_data = [] # percents of analysis out of PANcategory for bar graphs
         f_list = [] # list of values for fischer exact tests
         with open(final_results, 'r') as data_file:
@@ -1471,20 +1574,22 @@ def write_final_results_and_figure(loop_dir):
         o1v2, p1v2 = stats.fisher_exact(one_v_two)
         o1v3, p1v3 = stats.fisher_exact(one_v_three)
         o2v3, p2v3 = stats.fisher_exact(two_v_three)
-        fischer_labels = sig_letters(args.fischer_pvalue, p1v2, p1v3, p2v3)
+        uncorrected_p_list = [p1v2, p1v3, p2v3]
+        r, p, sf, bf = multipletests(uncorrected_p_list, alpha=args.multialpha, method=args.multitest)
+        fischer_labels = sig_letters(args.fischer_pvalue, p[0], p[1], p[2])
         label = ['Core','Accessory','Singleton']
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(dpi=1200, figsize=(4,4))
         ax.set_axisbelow(True)
         ax.yaxis.set_major_formatter(mtick.PercentFormatter())
         plt.minorticks_on()
-        plt.grid(which='minor', axis='y', color='white', linestyle='--', alpha=0.3)
-        ax.yaxis.grid(True, linestyle='-', linewidth='1', which='major', color='white')
+        plt.grid(which='minor', axis='y', color='white', linestyle='--', alpha=0.3, linewidth='0.75')
+        ax.yaxis.grid(True, linestyle='-', linewidth='0.75', which='major', color='white')
         ax.tick_params(axis='x', which='minor', bottom=False)
         ax.set_xticklabels(['Core', 'Accessory', 'Singleton'])
-        ax.axvline(x=0.5,color='white', linewidth='1')
-        ax.axvline(x=1.5,color='white', linewidth='1')
+        ax.axvline(x=0.5,color='white', linewidth='0.75')
+        ax.axvline(x=1.5,color='white', linewidth='0.75')
         ax.set_facecolor('gainsboro')
-        plt.bar(label, analysis_data, width=0.85, linewidth=2, color=['red','orange','yellow'], edgecolor='black')
+        plt.bar(label, analysis_data, width=0.85, linewidth=0.75, color=['red','orange','yellow'], edgecolor='black')
         rects = ax.patches
         (y_bottom, y_top) = ax.get_ylim()
         y_height = y_top - y_bottom
@@ -1492,23 +1597,25 @@ def write_final_results_and_figure(loop_dir):
             height = rect.get_height()
             label_position = height + (y_height * 0.01)
             ax.text(rect.get_x() + rect.get_width() /2, label_position, 
-            label, ha='center', va='bottom', fontsize = 12)
+            label, ha='center', va='bottom', fontsize = 12, fontname = 'Times New Roman')
         plt.ylim(0,y_height*1.03)
-        plt.xlabel('Pangenome categories')
+        plt.xlabel('Pangenome categories', fontname = 'Times New Roman', fontsize=12)
         if a == 'metabolite':
-            plt.ylabel(u'2\u00B0 metabolite protein clusters (%)')
+            plt.ylabel(u'2\u00B0 metabolite protein clusters (%)', fontname = 'Times New Roman', fontsize=12)
         elif a == 'transmembrane':
-            plt.ylabel('Transmembrane protein clusters (%)')
+            plt.ylabel('Transmembrane protein clusters (%)', fontname = 'Times New Roman', fontsize=12)
         elif a == 'secretome':
-            plt.ylabel('Secreted protein clusters (%)')
+            plt.ylabel('Secreted protein clusters (%)', fontname = 'Times New Roman', fontsize=12)
         elif a == 'effector':
-            plt.ylabel('Predicted effector protein clusters (%)')
+            plt.ylabel('Predicted effector protein clusters (%)', fontname = 'Times New Roman', fontsize=12)
         elif a == 'conserved':
-            plt.ylabel('Protein clusters with conserved protein domains (%)')
+            plt.ylabel('Protein clusters w/ conserved domains (%)', fontname = 'Times New Roman', fontsize=12)
         elif a == 'MEROP':
-            plt.ylabel('MEROP protein clusters (%)')
+            plt.ylabel('MEROP protein clusters (%)', fontname = 'Times New Roman', fontsize=12)
         elif a == 'CAZy':
-            plt.ylabel('CAZy protein clusters (%)')
+            plt.ylabel('CAZy protein clusters (%)', fontname = 'Times New Roman', fontsize=12)
+        plt.yticks(fontname = 'Times New Roman', fontsize=12)
+        plt.xticks(fontname = 'Times New Roman', fontsize=12)
         plt.tight_layout()
         plt.savefig(analysis_graph)
         plt.close()
@@ -1523,7 +1630,7 @@ def create_final_excel_file(excel_report):
         'Gene_product', 'PFAM_domains', 'Iprscan_domains', 'Gene_ontology', 'MEROPS', 'CAZy', '2nd_metabolite_backbone', 
         'smCOGs', 'Antismash_cluster', 'SignalP', 'Phobius_secreted', 'Phobius_transmembrane_domains', 'TMHMM', 
         'Secretome', 'Transmembrane', 'EffecorP_candidate', 'EffectorP_score'])
-        for cluster, proteins in complete_results.items():
+        for proteins in complete_results.values():
             for prot in proteins:
                 remove_locus = prot.pop(3) # remove locus_prefix as it was just used for indexing previously
                 excel.writerow(prot)
@@ -1540,7 +1647,7 @@ if __name__ == "__main__":
     pan_prot_dict = ortho_dictionaries[3] # {Pangenome category : list of proteins}
     iso_num = ortho_dictionaries[4] # number of genomes in sample
     sortCount = ortho_dictionaries[5] # sortedCountList for pangenome stats
-    iso_list = list(set(itertools.chain.from_iterable([v for v in ortho_iso_dict.values() if len(v) == iso_num])))
+    iso_list = sorted(list(set(itertools.chain.from_iterable([v for v in ortho_iso_dict.values() if len(v) == iso_num]))))
 
     # flip pan_cluster_dict for alternative searching {Cluster : Pangenome category}
     cluster_pan_dict = {}
@@ -1558,7 +1665,7 @@ if __name__ == "__main__":
     #### pangenome stats ####
     print('Writing general pangenome stats')
     pangenome_stats = os.path.abspath(os.path.join(result_dir, 'Pangenome_stats.txt'))
-    stats_figure = os.path.abspath(os.path.join(result_dir, 'Pangenome_stats.png'))
+    stats_figure = os.path.abspath(os.path.join(result_dir, 'Pangenome_stats.pdf'))
     isolates_per_cluster = os.path.abspath(os.path.join(result_dir, 'Isolates_per_cluster.txt'))
     cluters_per_PANcategory = os.path.abspath(os.path.join(result_dir, 'Cluters_per_PANcategory.txt'))
     proteins_per_PANcategory = os.path.abspath(os.path.join(result_dir, 'Proteins_per_PANcategory.txt'))
@@ -1572,7 +1679,7 @@ if __name__ == "__main__":
     #### pangenome fluidity ####
     print('Determning pangenome fluidity')
     pangenome_fluidity_results = os.path.abspath(os.path.join(result_dir, 'Pangenome_fluidity.txt'))
-    pangenome_fluidity_fig = os.path.abspath(os.path.join(result_dir, 'Pangenome_fluidity.png'))
+    pangenome_fluidity_fig = os.path.abspath(os.path.join(result_dir, 'Pangenome_fluidity.pdf'))
     permutation_list = []
     pair_dict = create_pair_dictionary_for_fluidity()
     determine_pangenome_fluidity(pangenome_fluidity_fig, pangenome_fluidity_results)
@@ -1580,10 +1687,12 @@ if __name__ == "__main__":
     ##### pangenome curve ####
     print('Determning pangenome curve')
     pangenome_curve_results = os.path.abspath(os.path.join(result_dir, 'Pangenome_curve.txt'))
-    pangenome_curve_figure = os.path.abspath(os.path.join(result_dir, 'Pangenome_curve.png'))
+    pangenome_curve_figure = os.path.abspath(os.path.join(result_dir, 'Pangenome_curve.pdf'))
     determine_pangenome_curve(pangenome_curve_figure, pangenome_curve_results)
 
-    #### pangenome protein lengths ####
+    sys.exit()
+
+    #### pangenome protein lengths #### WROTE NEW SCRIPT FOR THIS protein_lengths_by_pangenome_and_classification.py
     print('Determning proteins lengths for all proteins based on pangenome category')
     protein_lengths_results = os.path.abspath(os.path.join(result_dir, 'Proteins_lengths.txt'))
     protein_length_figure = os.path.abspath(os.path.join(result_dir, 'Protein_lengths.png'))
@@ -1608,23 +1717,22 @@ if __name__ == "__main__":
     # complete_results = {Protein cluster : nested list of all proteins in cluster}
     complete_results = {cluster : [[prot] for prot in ortho_prot_dict[cluster]] for cluster in ortho_prot_dict.keys()}
     for cluster, proteins in complete_results.items(): # complete results = final excel file
-    cluster_size = str(len(proteins))
-    for k, v in pan_cluster_dict.items():
-        if cluster in pan_cluster_dict['Core']:
-            category = 'Core'
-        elif cluster in pan_cluster_dict['Accessory']:
-            category = 'Accessory'
-        else:
-            category = 'Singleton'
-    for prot in proteins:
-        id = prot[0].split('_')[0] # should be locus prefix tag
-        prot.insert(0, id) # will end up as prot[3]
-        prot.insert(0,category) # will end up as prot[2]
-        prot.insert(0,cluster_size) # will end up as prot[1]
-        prot.insert(0,cluster) # will end up as prot[0]
-        # so far: complete results = {Cluster1 : [[cluster, cluster_size, PAN_category, locus_ID, protein_ID],[]],
-        #                             Cluster2 : [[cluster, cluster_size, PAN_category, locus_ID, protein_ID],[]]}
-
+        cluster_size = str(len(proteins))
+        for k, v in pan_cluster_dict.items():
+            if cluster in pan_cluster_dict['Core']:
+                category = 'Core'
+            elif cluster in pan_cluster_dict['Accessory']:
+                category = 'Accessory'
+            else:
+                category = 'Singleton'
+        for prot in proteins:
+            id = prot[0].split('_')[0] # should be locus prefix tag
+            prot.insert(0, id) # will end up as prot[3]
+            prot.insert(0,category) # will end up as prot[2]
+            prot.insert(0,cluster_size) # will end up as prot[1]
+            prot.insert(0,cluster) # will end up as prot[0]
+            # so far: complete results = {Cluster1 : [[cluster, cluster_size, PAN_category, locus_ID, protein_ID],[]],
+            #                             Cluster2 : [[cluster, cluster_size, PAN_category, locus_ID, protein_ID],[]]}
     isolate_count = 0 
     for dir in input_directory:
         isolate_count += 1
@@ -1641,7 +1749,6 @@ if __name__ == "__main__":
         perform_gene_ontology_enrichment()
 
     #### write final analyses results from finished loop results####
-    print('Writing out final results from analyses and creating bar graphs')
     total_core_secretome = []
     total_acc_secretome = []
     total_single_secretome = []
@@ -1663,6 +1770,7 @@ if __name__ == "__main__":
     total_core_dbcan = []
     total_acc_dbcan = []
     total_single_dbcan = []
+    print('Writing out final results from analyses and creating bar graphs')
     for dir in input_directory:
         write_final_results_and_figure(dir)
 
@@ -1672,4 +1780,3 @@ if __name__ == "__main__":
     if os.path.exists(pangenome_excel_results):
         os.remove(pangenome_excel_results)
     create_final_excel_file(pangenome_excel_results)
-
